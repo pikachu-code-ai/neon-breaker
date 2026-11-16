@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON BREAKER — Cyberpunk Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #05040a;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .neon-title {
+            text-shadow: 0 0 12px rgba(0, 243, 255, 0.85), 0 0 30px rgba(0, 243, 255, 0.45), 0 0 50px rgba(255, 0, 127, 0.35);
+        }
+        .neon-danger {
+            text-shadow: 0 0 12px rgba(255, 0, 127, 0.85), 0 0 28px rgba(255, 0, 127, 0.45);
+        }
+        /* Solid high-performance panel without heavy backdrop-blur */
+        .cyber-panel {
+            background-color: rgba(10, 8, 22, 0.94);
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- Fullscreen Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top HUD -->
+    <div id="hud" class="hidden fixed top-0 left-0 right-0 z-20 px-3 py-2 sm:px-6 sm:py-3 flex items-start justify-between gap-2 pointer-events-none">
+        
+        <!-- Left: Score, Best, Stage & Combo -->
+        <div class="flex items-center gap-2.5 sm:gap-4 bg-[#0b0918]/90 border border-cyan-500/35 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-[0_0_15px_rgba(0,243,255,0.12)]">
+            <div>
+                <div class="text-[9px] sm:text-[11px] uppercase tracking-widest text-cyan-400/80 font-bold">Score</div>
+                <div class="flex items-center gap-1.5">
+                    <span id="scoreDisplay" class="text-lg sm:text-2xl font-black font-mono text-white leading-none">0</span>
+                    <span id="comboBadge" class="hidden text-[11px] sm:text-xs font-black px-1.5 py-0.5 rounded bg-fuchsia-500 text-white">2x</span>
+                </div>
+            </div>
+            <div class="h-7 w-px bg-white/10"></div>
+            <div class="hidden xs:block sm:block">
+                <div class="text-[9px] sm:text-[11px] uppercase tracking-widest text-purple-400/80 font-bold">Best</div>
+                <div id="highScoreDisplay" class="text-base sm:text-xl font-bold font-mono text-purple-300 leading-none">0</div>
+            </div>
+            <div class="hidden sm:block h-7 w-px bg-white/10"></div>
+            <div>
+                <div class="text-[9px] sm:text-[11px] uppercase tracking-widest text-amber-400/80 font-bold">Stage</div>
+                <div id="stageDisplay" class="text-base sm:text-xl font-black font-mono text-amber-300 leading-none">1</div>
+            </div>
+        </div>
+
+        <!-- Center: Active Power-Up Countdown Bars -->
+        <div id="activePowerupsBar" class="flex flex-wrap justify-center gap-1.5 sm:gap-2 max-w-[42vw] sm:max-w-md">
+            <!-- Populated dynamically -->
+        </div>
+
+        <!-- Right: Lives & Control Buttons -->
+        <div class="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+            <!-- Lives Display -->
+            <div class="flex items-center gap-1 bg-[#0b0918]/90 border border-white/15 px-2.5 py-2 rounded-xl">
+                <span class="hidden md:inline text-[10px] uppercase tracking-widest text-gray-400 font-bold mr-1">Shields</span>
+                <div id="livesContainer" class="flex items-center gap-1">
+                    <!-- Shield icons injected dynamically -->
+                </div>
+            </div>
+
+            <!-- Mute Button (M) -->
+            <button id="muteBtn" title="Toggle Sound (M)" aria-label="Toggle Sound"
+                class="p-2 sm:p-2.5 rounded-xl bg-[#0b0918]/90 border border-white/15 hover:border-cyan-400/70 text-cyan-300 hover:text-white transition-colors active:scale-95">
+                <svg id="iconSoundOn" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"></path>
+                </svg>
+                <svg id="iconSoundOff" class="w-5 h-5 hidden text-rose-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M23 9l-6 6M17 9l6 6"></path>
+                </svg>
+            </button>
+
+            <!-- Pause Button (P) -->
+            <button id="pauseBtn" title="Pause Game (P)" aria-label="Pause Game"
+                class="p-2 sm:p-2.5 rounded-xl bg-[#0b0918]/90 border border-white/15 hover:border-cyan-400/70 text-cyan-300 hover:text-white transition-colors active:scale-95">
+                <svg id="iconPause" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6"></path>
+                </svg>
+                <svg id="iconPlay" class="w-5 h-5 hidden text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 5v14l11-7z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal / UI Overlay Layer -->
+    <div id="uiLayer" class="fixed inset-0 z-30 flex items-center justify-center p-4 pointer-events-none">
+        
+        <!-- Main Menu Overlay -->
+        <div id="menuScreen" class="pointer-events-auto cyber-panel border-2 border-cyan-500/50 rounded-2xl p-5 sm:p-8 max-w-xl w-full shadow-[0_0_50px_rgba(0,243,255,0.2)] max-h-[92vh] overflow-y-auto">
+            <div class="text-center mb-5">
+                <div class="inline-block px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-2">
+                    Cyberpunk Brick-Breaker
+                </div>
+                <h1 class="text-4xl sm:text-6xl font-black tracking-wider text-white neon-title italic">
+                    NEON BREAKER
+                </h1>
+            </div>
+
+            <!-- Controls Guide -->
+            <div class="bg-white/[0.04] border border-white/10 rounded-xl p-3 mb-5 text-xs text-gray-300 text-center space-y-1">
+                <div><strong class="text-cyan-300">Desktop:</strong> Mouse or <kbd class="px-1.5 py-0.5 bg-white/10 rounded text-white">A/D</kbd> <kbd class="px-1.5 py-0.5 bg-white/10 rounded text-white">◀/▶</kbd> &bull; <kbd class="px-1.5 py-0.5 bg-white/10 rounded text-white">Space</kbd> / Click to Launch</div>
+                <div><strong class="text-pink-400">Mobile:</strong> Touch &amp; Drag to Move &bull; Release / Tap to Launch</div>
+            </div>
+
+            <!-- Brick & Power-Up Guide -->
+            <div class="mb-6">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2.5 text-center">Power-Ups &amp; Hazards</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                    <!-- 1. Multi-Ball -->
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-cyan-400/30">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black text-cyan-300" style="background: rgba(0,243,255,0.16); border: 1.5px solid #00f3ff;">M3</div>
+                        <div>
+                            <div class="text-xs font-bold text-cyan-300">MULTI-BALL</div>
+                            <div class="text-[11px] text-gray-400 leading-tight">Splits active balls into 3 spread balls</div>
+                        </div>
+                    </div>
+                    <!-- 2. Fireball -->
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-orange-500/30">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black text-orange-400" style="background: rgba(255,106,0,0.16); border: 1.5px solid #ff6a00;">🔥</div>
+                        <div>
+                            <div class="text-xs font-bold text-orange-400">FIREBALL <span class="text-[10px] text-gray-400 font-normal">(8s)</span></div>
+                            <div class="text-[11px] text-gray-400 leading-tight">Pierces straight through all bricks</div>
+                        </div>
+                    </div>
+                    <!-- 3. Laser Paddle -->
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-pink-500/30">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black text-pink-400" style="background: rgba(255,0,127,0.16); border: 1.5px solid #ff007f;">⚡</div>
+                        <div>
+                            <div class="text-xs font-bold text-pink-400">LASER PADDLE <span class="text-[10px] text-gray-400 font-normal">(10s)</span></div>
+                            <div class="text-[11px] text-gray-400 leading-tight">Twin turrets fire upward laser bolts</div>
+                        </div>
+                    </div>
+                    <!-- 4. Wide Paddle -->
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-green-400/30">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black text-green-400" style="background: rgba(0,255,102,0.16); border: 1.5px solid #00ff66;">↔</div>
+                        <div>
+                            <div class="text-xs font-bold text-green-400">WIDE PADDLE <span class="text-[10px] text-gray-400 font-normal">(12s)</span></div>
+                            <div class="text-[11px] text-gray-400 leading-tight">Expands paddle width by 50%</div>
+                        </div>
+                    </div>
+                    <!-- 5. +1 Life -->
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-yellow-400/30">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black text-yellow-300" style="background: rgba(255,230,0,0.16); border: 1.5px solid #ffe600;">+1</div>
+                        <div>
+                            <div class="text-xs font-bold text-yellow-300">+1 SHIELD LIFE</div>
+                            <div class="text-[11px] text-gray-400 leading-tight">Grants an extra shield (up to 5 max)</div>
+                        </div>
+                    </div>
+                    <!-- Bomb Brick Hazard -->
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-red-500/30">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black text-red-400" style="background: rgba(255,42,42,0.16); border: 1.5px solid #ff2a2a;">💥</div>
+                        <div>
+                            <div class="text-xs font-bold text-red-400">BOMB BRICKS</div>
+                            <div class="text-[11px] text-gray-400 leading-tight">Detonates adjacent bricks in a chain!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Launch Button & High Score -->
+            <div class="flex flex-col items-center gap-3">
+                <button id="startBtn" class="w-full sm:w-auto px-12 py-3.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-[#05040a] font-black text-lg tracking-wider uppercase transition-colors shadow-[0_0_25px_rgba(0,243,255,0.55)] active:scale-95">
+                    Start Game
+                </button>
+                <div class="text-xs text-gray-400 font-mono">
+                    High Score: <span id="menuHighScore" class="text-cyan-300 font-bold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pauseScreen" class="hidden pointer-events-auto cyber-panel border-2 border-cyan-400/50 rounded-2xl p-8 max-w-sm w-full text-center shadow-[0_0_40px_rgba(0,243,255,0.2)]">
+            <h2 class="text-3xl font-black tracking-widest text-cyan-400 mb-2 uppercase">Paused</h2>
+            <p class="text-sm text-gray-300 mb-6">Press <kbd class="px-1.5 py-0.5 bg-white/10 rounded text-white">P</kbd> or tap Resume to continue</p>
+            <div class="flex flex-col gap-3">
+                <button id="resumeBtn" class="w-full py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-[#05040a] font-black uppercase tracking-wider transition-colors">
+                    Resume
+                </button>
+                <button id="quitBtn" class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-gray-300 font-bold text-sm uppercase tracking-wider transition-colors">
+                    Main Menu
+                </button>
+            </div>
+        </div>
+
+        <!-- Stage Clear Banner -->
+        <div id="stageBanner" class="hidden pointer-events-none cyber-panel border-2 border-emerald-400/70 rounded-2xl px-8 py-5 text-center shadow-[0_0_40px_rgba(0,255,102,0.3)]">
+            <div id="stageBannerSub" class="text-xs font-bold uppercase tracking-widest text-emerald-300 mb-1">Sector Cleared</div>
+            <div id="stageBannerTitle" class="text-3xl sm:text-4xl font-black tracking-wider text-white uppercase">STAGE 2</div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameOverScreen" class="hidden pointer-events-auto cyber-panel border-2 border-pink-500/60 rounded-2xl p-7 sm:p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(255,0,127,0.25)]">
+            <div class="text-xs font-bold uppercase tracking-widest text-pink-400 mb-1">Shields Depleted</div>
+            <h2 class="text-4xl sm:text-5xl font-black tracking-wider text-white neon-danger mb-5 uppercase">Game Over</h2>
+            
+            <div class="bg-white/[0.04] border border-white/10 rounded-xl p-4 mb-6 space-y-2.5">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-400">Final Score</span>
+                    <span id="finalScore" class="text-2xl font-black font-mono text-white">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-400">Best Score</span>
+                    <span id="bestScore" class="text-lg font-bold font-mono text-cyan-400">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-400">Stage Reached</span>
+                    <span id="finalStage" class="text-lg font-bold font-mono text-amber-300">1</span>
+                </div>
+                <div id="newRecordBadge" class="hidden pt-1 text-xs font-extrabold uppercase tracking-widest text-yellow-300">
+                    ★ New High Score! ★
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2.5">
+                <button id="restartBtn" class="w-full py-3.5 rounded-xl bg-pink-500 hover:bg-pink-400 text-white font-black text-lg uppercase tracking-wider transition-colors shadow-[0_0_25px_rgba(255,0,127,0.5)] active:scale-95">
+                    Play Again
+                </button>
+                <button id="gameOverMenuBtn" class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-gray-300 font-bold text-xs uppercase tracking-wider transition-colors">
+                    Main Menu
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /**
+         * NEON BREAKER — Complete Single-File Cyberpunk Brick-Breaker
+         * Features:
+         * - High-FPS Canvas rendering (DPR capped at 2, zero heavy CSS blur filters, pooled particles)
+         * - 4 Brick types (Standard 1HP, Armor 2HP with crack visuals, Heavy Core 3HP, Bomb chain-reaction)
+         * - Symmetrical hand-crafted + procedural formations
+         * - Combo multiplier system with ascending Web Audio synth tones
+         * - 5 Power-ups (Multi-Ball, Fireball, Laser Paddle, Wide Paddle, +1 Life) with HUD countdown bars
+         * - Angle-based paddle deflection + anti-horizontal-lock safeguards
+         */
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+
+        // DOM References
+        const hud = document.getElementById('hud');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const comboBadge = document.getElementById('comboBadge');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const stageDisplay = document.getElementById('stageDisplay');
+        const livesContainer = document.getElementById('livesContainer');
+        const activePowerupsBar = document.getElementById('activePowerupsBar');
+
+        const menuScreen = document.getElementById('menuScreen');
+        const pauseScreen = document.getElementById('pauseScreen');
+        const stageBanner = document.getElementById('stageBanner');
+        const stageBannerSub = document.getElementById('stageBannerSub');
+        const stageBannerTitle = document.getElementById('stageBannerTitle');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+
+        const menuHighScore = document.getElementById('menuHighScore');
+        const finalScoreEl = document.getElementById('finalScore');
+        const bestScoreEl = document.getElementById('bestScore');
+        const finalStageEl = document.getElementById('finalStage');
+        const newRecordBadge = document.getElementById('newRecordBadge');
+
+        const muteBtn = document.getElementById('muteBtn');
+        const iconSoundOn = document.getElementById('iconSoundOn');
+        const iconSoundOff = document.getElementById('iconSoundOff');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const iconPause = document.getElementById('iconPause');
+        const iconPlay = document.getElementById('iconPlay');
+
+        // ==========================================
+        // 1. WEB AUDIO API RETRO SYNTHESIZER
+        // ==========================================
+        class RetroAudio {
+            constructor() {
+                this.ctx = null;
+                this.muted = localStorage.getItem('neonBreakerMuted') === 'true';
+                this.updateMuteIcons();
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                localStorage.setItem('neonBreakerMuted', String(this.muted));
+                this.updateMuteIcons();
+                if (!this.muted) {
+                    this.init();
+                    this.playTone(660, 880, 0.06, 'sine', 0.12);
+                }
+            }
+
+            updateMuteIcons() {
+                if (this.muted) {
+                    iconSoundOn.classList.add('hidden');
+                    iconSoundOff.classList.remove('hidden');
+                } else {
+                    iconSoundOn.classList.remove('hidden');
+                    iconSoundOff.classList.add('hidden');
+                }
+            }
+
+            playTone(startFreq, endFreq, duration, type = 'triangle', volume = 0.14, delay = 0) {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime + delay;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(startFreq, now);
+                    if (endFreq !== startFreq) {
+                        osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
+                    }
+                    gain.gain.setValueAtTime(volume, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration + 0.01);
+                } catch (e) {}
+            }
+
+            playPaddleBounce() {
+                this.playTone(230, 360, 0.075, 'triangle', 0.16);
+            }
+
+            playWallBounce() {
+                this.playTone(190, 220, 0.045, 'sine', 0.09);
+            }
+
+            playBrickHit(combo, destroyed = true, isHeavy = false) {
+                // Ascending musical pentatonic scale with combo
+                const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66];
+                const idx = Math.min(scale.length - 1, Math.max(0, combo - 1));
+                const freq = scale[idx];
+
+                if (!destroyed && isHeavy) {
+                    // Metallic armor clink
+                    this.playTone(freq * 1.5, freq * 1.15, 0.06, 'square', 0.11);
+                } else {
+                    // Crisp neon shatter chime
+                    this.playTone(freq, freq * 1.35, 0.095, 'triangle', 0.15);
+                }
+            }
+
+            playBombExplosion() {
+                this.playTone(150, 26, 0.36, 'sawtooth', 0.24);
+                this.playTone(95, 22, 0.32, 'square', 0.16, 0.02);
+            }
+
+            playLaserShoot() {
+                this.playTone(960, 240, 0.08, 'sawtooth', 0.09);
+            }
+
+            playPowerup(type) {
+                if (type === 'life') {
+                    this.playTone(523.25, 523.25, 0.08, 'triangle', 0.16, 0);
+                    this.playTone(659.25, 659.25, 0.08, 'triangle', 0.16, 0.06);
+                    this.playTone(783.99, 783.99, 0.08, 'triangle', 0.16, 0.12);
+                    this.playTone(1046.5, 1046.5, 0.18, 'triangle', 0.18, 0.18);
+                } else {
+                    this.playTone(440, 660, 0.07, 'triangle', 0.15, 0);
+                    this.playTone(554.37, 880, 0.09, 'triangle', 0.15, 0.055);
+                    this.playTone(659.25, 1108.73, 0.12, 'triangle', 0.16, 0.11);
+                }
+            }
+
+            playLifeLost() {
+                this.playTone(340, 170, 0.16, 'sawtooth', 0.18, 0);
+                this.playTone(220, 65, 0.28, 'sawtooth', 0.20, 0.14);
+            }
+
+            playStageClear() {
+                const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                notes.forEach((n, i) => {
+                    this.playTone(n, n * 1.03, 0.16, 'triangle', 0.16, i * 0.075);
+                });
+            }
+        }
+
+        const sfx = new RetroAudio();
+
+        // ==========================================
+        // 2. COLOR PALETTE & POWER-UP CONFIG
+        // ==========================================
+        const PALETTE = {
+            bg: '#05040a',
+            arenaBg: '#080612',
+            cyan: '#00f3ff',
+            magenta: '#ff007f',
+            yellow: '#ffe600',
+            green: '#00ff66',
+            orange: '#ff6a00',
+            purple: '#b026ff',
+            red: '#ff2a2a'
+        };
+
+        const POWERUP_CONFIG = {
+            multiball: {
+                id: 'multiball',
+                label: 'MULTI-BALL',
+                shortLabel: 'M3',
+                color: PALETTE.cyan,
+                duration: 0, // Instant
+                weight: 24
+            },
+            fireball: {
+                id: 'fireball',
+                label: 'FIREBALL',
+                shortLabel: 'FIRE',
+                color: PALETTE.orange,
+                duration: 8.0,
+                weight: 22
+            },
+            laser: {
+                id: 'laser',
+                label: 'LASER PADDLE',
+                shortLabel: 'LASER',
+                color: PALETTE.magenta,
+                duration: 10.0,
+                weight: 22
+            },
+            wide: {
+                id: 'wide',
+                label: 'WIDE PADDLE',
+                shortLabel: 'WIDE',
+                color: PALETTE.green,
+                duration: 12.0,
+                weight: 22
+            },
+            life: {
+                id: 'life',
+                label: '+1 SHIELD',
+                shortLabel: '+1UP',
+                color: PALETTE.yellow,
+                duration: 0, // Instant
+                weight: 10
+            }
+        };
+
+        // ==========================================
+        // 3. GAME STATE & ARENA DIMENSIONS
+        // ==========================================
+        const MAX_LIVES = 5;
+        const STARTING_LIVES = 3;
+        const MAX_BALLS = 9;
+        const MAX_PARTICLES = 140;
+        const MAX_POPUPS = 25;
+        const HUD_SAFE_TOP = 66;
+
+        let viewWidth = window.innerWidth;
+        let viewHeight = window.innerHeight;
+
+        // Centered responsive playfield inside fullscreen canvas
+        let arena = {
+            x: 0,
+            y: HUD_SAFE_TOP,
+            w: 800,
+            h: 600
+        };
+
+        let state = 'menu'; // 'menu' | 'playing' | 'paused' | 'stageClear' | 'gameover'
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('neonBreakerHighScore') || '0', 10);
+        let stage = 1;
+        let lives = STARTING_LIVES;
+        let combo = 0;
+
+        // Paddle
+        const paddle = {
+            x: 400,
+            y: 550,
+            baseW: 112,
+            w: 112,
+            targetW: 112,
+            h: 15,
+            speed: 780,
+            laserCooldown: 0
+        };
+
+        // Entities & Pools
+        let balls = [];
+        let bricks = [];
+        let capsules = [];
+        let lasers = [];
+        let particles = [];
+        let popups = [];
+
+        // Active Timed Power-Ups: { fireball: { remaining, duration }, laser: {...}, wide: {...} }
+        let activeTimers = {};
+
+        // Input State
+        const keys = { left: false, right: false };
+        let pointerActive = false;
+        let stageClearTimer = 0;
+        let shakeTime = 0;
+        let shakeMag = 0;
+        let lastFrameTime = 0;
+
+        // ==========================================
+        // 4. RESIZE & RESPONSIVE ARENA LAYOUT
+        // ==========================================
+        function resize() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            viewWidth = window.innerWidth;
+            viewHeight = window.innerHeight;
+
+            canvas.width = Math.floor(viewWidth * dpr);
+            canvas.height = Math.floor(viewHeight * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const prevArena = { ...arena };
+
+            const sideMargin = viewWidth < 640 ? 10 : 28;
+            const bottomMargin = viewWidth < 640 ? 14 : 22;
+            const maxArenaW = 860;
+
+            arena.w = Math.min(maxArenaW, Math.max(280, viewWidth - sideMargin * 2));
+            arena.x = Math.floor((viewWidth - arena.w) / 2);
+            arena.y = HUD_SAFE_TOP;
+            arena.h = Math.max(320, viewHeight - arena.y - bottomMargin);
+
+            // Responsive paddle dimensions
+            paddle.baseW = Math.max(76, Math.min(126, arena.w * 0.165));
+            paddle.targetW = activeTimers.wide ? paddle.baseW * 1.5 : paddle.baseW;
+            paddle.w = paddle.targetW;
+            paddle.h = viewWidth < 640 ? 14 : 16;
+            paddle.y = arena.y + arena.h - (viewWidth < 640 ? 28 : 34);
+
+            if (prevArena.w > 0 && prevArena.h > 0 && bricks.length > 0) {
+                const scaleX = arena.w / prevArena.w;
+                const scaleY = arena.h / prevArena.h;
+
+                paddle.x = arena.x + (paddle.x - prevArena.x) * scaleX;
+                clampPaddle();
+
+                for (const b of bricks) {
+                    b.x = arena.x + (b.x - prevArena.x) * scaleX;
+                    b.y = arena.y + (b.y - prevArena.y) * scaleY;
+                    b.w *= scaleX;
+                    b.h *= scaleY;
+                }
+
+                for (const ball of balls) {
+                    if (ball.docked) {
+                        ball.x = paddle.x + ball.dockOffset;
+                        ball.y = paddle.y - ball.r - 1;
+                    } else {
+                        ball.x = arena.x + (ball.x - prevArena.x) * scaleX;
+                        ball.y = arena.y + (ball.y - prevArena.y) * scaleY;
+                    }
+                }
+            } else {
+                paddle.x = arena.x + arena.w / 2;
+            }
+        }
+        window.addEventListener('resize', resize);
+
+        function clampPaddle() {
+            const halfW = paddle.w / 2;
+            paddle.x = Math.max(arena.x + halfW + 4, Math.min(arena.x + arena.w - halfW - 4, paddle.x));
+        }
+
+        // ==========================================
+        // 5. SYMMETRICAL STAGE & BRICK GENERATOR
+        // ==========================================
+        // Brick Codes:
+        // '.' = empty
+        // 'C' = Standard Cyan (1 HP)
+        // 'G' = Standard Green (1 HP)
+        // 'A' = Reinforced Armor Magenta (2 HP)
+        // 'H' = Heavy Core Gold/Orange (3 HP)
+        // 'B' = Bomb Brick Red/Orange (1 HP, chain-reaction explosion)
+
+        const HANDCRAFTED_STAGES = [
+            // Stage 1: Cyber Diamond (11 cols x 7 rows)
+            [
+                '.....H.....',
+                '....CGC....',
+                '...CGBGC...',
+                '..ACGCGCGA.',
+                '...CGBGC...',
+                '....CGC....',
+                '.....A.....'
+            ],
+            // Stage 2: Twin Towers (11 cols x 8 rows)
+            [
+                '.HHH...HHH.',
+                '.ACA...ACA.',
+                '.CGC...CGC.',
+                '.ABA...ABA.',
+                '.CGC...CGC.',
+                '.ACA...ACA.',
+                'GGG.....GGG',
+                'AAA.....AAA'
+            ],
+            // Stage 3: Neon Fortress (11 cols x 8 rows)
+            [
+                'HHHHHHHHHHH',
+                'A.........A',
+                'A.CGB.BGC.A',
+                'A.GAA.AAG.A',
+                'A.CGB.BGC.A',
+                'A.........A',
+                'AAACCCCCAAA',
+                '..G.....G..'
+            ],
+            // Stage 4: Vortex Grid (11 cols x 9 rows)
+            [
+                'H..C...C..H',
+                '.A..G.G..A.',
+                '..B..H..B..',
+                'C..A.C.A..C',
+                '.G..HBH..G.',
+                'C..A.C.A..C',
+                '..B..H..B..',
+                '.A..G.G..A.',
+                'H..C...C..H'
+            ],
+            // Stage 5: Overdrive Citadel (11 cols x 9 rows)
+            [
+                'HH.AAAAA.HH',
+                'HBCGGGGGCBH',
+                'AAC.H.H.CAA',
+                'CGB.AAA.BGC',
+                'CCC.HBH.CCC',
+                'A.G.AAA.G.A',
+                'C.B..C..B.C',
+                'AA.GG.GG.AA',
+                '..CC...CC..'
+            ]
+        ];
+
+        function buildStageBricks(stageNum) {
+            bricks = [];
+            const cols = 11;
+            const gap = viewWidth < 640 ? 4 : 6;
+            const sidePad = viewWidth < 640 ? 12 : 24;
+            const topPad = viewWidth < 640 ? 34 : 44;
+
+            const usableW = arena.w - sidePad * 2;
+            const brickW = (usableW - gap * (cols - 1)) / cols;
+            const brickH = Math.max(16, Math.min(24, arena.h * 0.036));
+
+            let pattern = [];
+            if (stageNum <= HANDCRAFTED_STAGES.length) {
+                pattern = HANDCRAFTED_STAGES[stageNum - 1];
+            } else {
+                // Procedural symmetrical wave generator for stage 6+
+                const rows = Math.min(10, 7 + Math.floor((stageNum - 5) / 2));
+                const halfCols = Math.ceil(cols / 2);
+                const pool = ['C', 'G', 'A', 'H', 'B', '.'];
+
+                for (let r = 0; r < rows; r++) {
+                    const leftHalf = [];
+                    for (let c = 0; c < halfCols; c++) {
+                        // Weighted selection based on row & stage depth
+                        const roll = Math.random();
+                        let code = '.';
+                        if (roll < 0.14 && r > 0 && r < rows - 1) {
+                            code = '.';
+                        } else if (roll < 0.24) {
+                            code = 'B';
+                        } else if (roll < 0.44 + Math.min(0.2, stageNum * 0.02)) {
+                            code = 'H';
+                        } else if (roll < 0.72) {
+                            code = 'A';
+                        } else {
+                            code = (r + c) % 2 === 0 ? 'C' : 'G';
+                        }
+                        leftHalf.push(code);
+                    }
+                    // Mirror left half to right half for perfect symmetry
+                    const fullRow = [...leftHalf];
+                    for (let c = Math.floor(cols / 2) - 1; c >= 0; c--) {
+                        fullRow.push(leftHalf[c]);
+                    }
+                    pattern.push(fullRow.join(''));
+                }
+            }
+
+            for (let r = 0; r < pattern.length; r++) {
+                const rowStr = pattern[r];
+                for (let c = 0; c < cols; c++) {
+                    const ch = rowStr[c];
+                    if (!ch || ch === '.') continue;
+
+                    const bx = arena.x + sidePad + c * (brickW + gap);
+                    const by = arena.y + topPad + r * (brickH + gap);
+
+                    let type = 'standard';
+                    let hp = 1;
+                    let color = PALETTE.cyan;
+                    let points = 100;
+
+                    if (ch === 'G') {
+                        type = 'standard';
+                        hp = 1;
+                        color = PALETTE.green;
+                        points = 100;
+                    } else if (ch === 'A') {
+                        type = 'armor';
+                        hp = 2;
+                        color = PALETTE.magenta;
+                        points = 200;
+                    } else if (ch === 'H') {
+                        type = 'core';
+                        hp = 3;
+                        color = PALETTE.orange;
+                        points = 350;
+                    } else if (ch === 'B') {
+                        type = 'bomb';
+                        hp = 1;
+                        color = PALETTE.red;
+                        points = 250;
+                    }
+
+                    bricks.push({
+                        x: bx,
+                        y: by,
+                        w: brickW,
+                        h: brickH,
+                        type,
+                        hp,
+                        maxHp: hp,
+                        color,
+                        points,
+                        hitFlash: 0,
+                        destroyed: false
+                    });
+                }
+            }
+        }
+
+        // ==========================================
+        // 6. BALL CREATION & LAUNCH MECHANICS
+        // ==========================================
+        function getBaseBallSpeed() {
+            // Smoothly scales with stage while remaining fair and responsive
+            const base = viewWidth < 640 ? 430 : 510;
+            return Math.min(760, base + (stage - 1) * 28);
+        }
+
+        function createBall(x, y, vx, vy, docked = false) {
+            const r = viewWidth < 640 ? 6.5 : 7.5;
+            return {
+                x,
+                y,
+                vx,
+                vy,
+                r,
+                speed: getBaseBallSpeed(),
+                docked,
+                dockOffset: 0,
+                trail: []
+            };
+        }
+
+        function spawnDockedBall() {
+            const speed = getBaseBallSpeed();
+            const ball = createBall(paddle.x, paddle.y - 9, 0, -speed, true);
+            balls = [ball];
+        }
+
+        function launchDockedBalls() {
+            let launchedAny = false;
+            for (const ball of balls) {
+                if (ball.docked) {
+                    ball.docked = false;
+                    // Launch slightly angled based on where paddle sits in arena
+                    const relArena = (paddle.x - (arena.x + arena.w / 2)) / (arena.w / 2);
+                    const angle = Math.max(-0.45, Math.min(0.45, relArena * 0.35 + (Math.random() - 0.5) * 0.22));
+                    ball.speed = getBaseBallSpeed();
+                    ball.vx = ball.speed * Math.sin(angle);
+                    ball.vy = -ball.speed * Math.cos(angle);
+                    launchedAny = true;
+                }
+            }
+            if (launchedAny) {
+                sfx.playPaddleBounce();
+            }
+        }
+
+        function enforceBallVelocitySafeguards(ball) {
+            const targetSpeed = getBaseBallSpeed();
+            ball.speed = targetSpeed;
+
+            const currentMag = Math.hypot(ball.vx, ball.vy);
+            if (currentMag === 0) {
+                ball.vx = targetSpeed * 0.3;
+                ball.vy = -targetSpeed * 0.95;
+                return;
+            }
+
+            // Normalize to exact target speed
+            ball.vx = (ball.vx / currentMag) * targetSpeed;
+            ball.vy = (ball.vy / currentMag) * targetSpeed;
+
+            // Anti-horizontal-lock: ensure vertical velocity is at least 28% of speed (~16 degrees)
+            const minVy = targetSpeed * 0.28;
+            if (Math.abs(ball.vy) < minVy) {
+                const signY = ball.vy >= 0 ? 1 : -1;
+                const signX = ball.vx >= 0 ? 1 : -1;
+                ball.vy = signY * minVy;
+                ball.vx = signX * Math.sqrt(Math.max(0, targetSpeed * targetSpeed - ball.vy * ball.vy));
+            }
+        }
+
+        // ==========================================
+        // 7. INPUT HANDLING (MOUSE, KEYBOARD, TOUCH)
+        // ==========================================
+        window.addEventListener('keydown', (e) => {
+            const k = e.key;
+
+            if (k === 'm' || k === 'M') {
+                sfx.toggleMute();
+                return;
+            }
+
+            if (k === 'p' || k === 'P' || k === 'Escape') {
+                if (state === 'playing' || state === 'paused') {
+                    e.preventDefault();
+                    togglePause();
+                }
+                return;
+            }
+
+            if (state === 'menu' || state === 'gameover') {
+                if (e.code === 'Space' || e.code === 'Enter') {
+                    e.preventDefault();
+                    startGame();
+                }
+                return;
+            }
+
+            if (state === 'paused') {
+                if (e.code === 'Space' || e.code === 'Enter') {
+                    e.preventDefault();
+                    togglePause();
+                }
+                return;
+            }
+
+            if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
+                keys.left = true;
+                pointerActive = false;
+            } else if (k === 'ArrowRight' || k === 'd' || k === 'D') {
+                keys.right = true;
+                pointerActive = false;
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                if (state === 'playing') {
+                    launchDockedBalls();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const k = e.key;
+            if (k === 'ArrowLeft' || k === 'a' || k === 'A') keys.left = false;
+            if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = false;
+        });
+
+        // Mouse Movement & Click Launch
+        canvas.addEventListener('mousemove', (e) => {
+            if (state !== 'playing' && state !== 'stageClear') return;
+            pointerActive = true;
+            paddle.x = e.clientX;
+            clampPaddle();
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if (state === 'playing') {
+                sfx.init();
+                paddle.x = e.clientX;
+                clampPaddle();
+                launchDockedBalls();
+            }
+        });
+
+        // Mobile Touch & Drag Movement + Release/Tap Launch
+        let touchStartedWithDocked = false;
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (state !== 'playing' && state !== 'stageClear') return;
+            e.preventDefault();
+            sfx.init();
+            const touch = e.touches[0];
+            pointerActive = true;
+            paddle.x = touch.clientX;
+            clampPaddle();
+            touchStartedWithDocked = balls.some(b => b.docked);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (state !== 'playing' && state !== 'stageClear') return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            paddle.x = touch.clientX;
+            clampPaddle();
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (state === 'playing' && touchStartedWithDocked) {
+                launchDockedBalls();
+                touchStartedWithDocked = false;
+            }
+        });
+
+        // ==========================================
+        // 8. VISUAL EFFECTS, PARTICLES & HUD UPDATES
+        // ==========================================
+        function triggerShake(duration, magnitude) {
+            shakeTime = Math.max(shakeTime, duration);
+            shakeMag = Math.max(shakeMag, magnitude);
+        }
+
+        function spawnParticles(x, y, color, count = 14, speedScale = 1) {
+            for (let i = 0; i < count; i++) {
+                if (particles.length >= MAX_PARTICLES) particles.shift();
+                const angle = Math.random() * Math.PI * 2;
+                const spd = (65 + Math.random() * 230) * speedScale;
+                particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd,
+                    life: 1.0,
+                    decay: 1.7 + Math.random() * 1.4,
+                    color: Math.random() > 0.25 ? color : '#ffffff',
+                    size: 2.2 + Math.random() * 3.2
+                });
+            }
+        }
+
+        function spawnPopup(x, y, text, color) {
+            if (popups.length >= MAX_POPUPS) popups.shift();
+            popups.push({
+                x,
+                y,
+                text,
+                color,
+                life: 1.0,
+                vy: -46
+            });
+        }
+
+        function updateHUD() {
+            scoreDisplay.textContent = score;
+            highScoreDisplay.textContent = Math.max(score, highScore);
+            stageDisplay.textContent = stage;
+
+            if (combo >= 2) {
+                comboBadge.textContent = `${combo}x`;
+                comboBadge.classList.remove('hidden');
+            } else {
+                comboBadge.classList.add('hidden');
+            }
+        }
+
+        function renderLivesHUD() {
+            let html = '';
+            for (let i = 0; i < MAX_LIVES; i++) {
+                const active = i < lives;
+                html += `
+                    <div class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-sm transition-all ${
+                        active
+                            ? 'bg-cyan-400 shadow-[0_0_8px_#00f3ff]'
+                            : 'bg-white/10 border border-white/15'
+                    }"></div>
+                `;
+            }
+            livesContainer.innerHTML = html;
+        }
+
+        function renderPowerupTimersHUD() {
+            const keys = Object.keys(activeTimers);
+            if (keys.length === 0) {
+                activePowerupsBar.innerHTML = '';
+                return;
+            }
+
+            activePowerupsBar.innerHTML = keys.map(key => {
+                const cfg = POWERUP_CONFIG[key];
+                const timer = activeTimers[key];
+                const pct = Math.max(0, Math.min(100, (timer.remaining / timer.duration) * 100));
+                const pulseClass = timer.remaining <= 2.0 ? 'animate-pulse' : '';
+
+                return `
+                    <div class="bg-[#0b0918]/95 border px-2 py-1 rounded-lg min-w-[84px] sm:min-w-[106px] ${pulseClass}"
+                         style="border-color: ${cfg.color}88;">
+                        <div class="flex items-center justify-between gap-1 text-[9px] sm:text-[11px] font-black tracking-wide mb-0.5" style="color: ${cfg.color};">
+                            <span>${cfg.shortLabel}</span>
+                            <span class="font-mono text-white/90">${timer.remaining.toFixed(1)}s</span>
+                        </div>
+                        <div class="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full" style="width: ${pct}%; background-color: ${cfg.color};"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ==========================================
+        // 9. POWER-UP DROPS & ACTIVATION
+        // ==========================================
+        function maybeDropPowerup(bx, by) {
+            // 24% drop chance when breaking a brick; cap max falling capsules at 3
+            if (capsules.length >= 3 || Math.random() > 0.24) return;
+
+            const entries = Object.values(POWERUP_CONFIG);
+            const totalWeight = entries.reduce((sum, item) => sum + item.weight, 0);
+            let roll = Math.random() * totalWeight;
+            let chosen = entries[0];
+
+            for (const entry of entries) {
+                roll -= entry.weight;
+                if (roll <= 0) {
+                    chosen = entry;
+                    break;
+                }
+            }
+
+            capsules.push({
+                x: bx,
+                y: by,
+                w: viewWidth < 640 ? 44 : 52,
+                h: 20,
+                vy: viewWidth < 640 ? 175 : 205,
+                type: chosen.id,
+                pulse: 0
+            });
+        }
+
+        function activatePowerup(typeId, px, py) {
+            const cfg = POWERUP_CONFIG[typeId];
+            sfx.playPowerup(typeId);
+            spawnParticles(px, py, cfg.color, 18, 1.1);
+            spawnPopup(px, py - 14, cfg.label, cfg.color);
+
+            if (typeId === 'multiball') {
+                // Split current active balls into 3 spread balls (up to MAX_BALLS)
+                const currentBalls = balls.slice();
+                for (const b of currentBalls) {
+                    if (balls.length >= MAX_BALLS) break;
+                    if (b.docked) {
+                        b.docked = false;
+                        b.vx = 0;
+                        b.vy = -b.speed;
+                    }
+                    const baseAngle = Math.atan2(b.vx, -b.vy);
+                    const spreadAngles = [-0.36, 0.36];
+                    for (const offset of spreadAngles) {
+                        if (balls.length >= MAX_BALLS) break;
+                        const newAngle = baseAngle + offset;
+                        const nb = createBall(
+                            b.x,
+                            b.y,
+                            b.speed * Math.sin(newAngle),
+                            -b.speed * Math.cos(newAngle),
+                            false
+                        );
+                        enforceBallVelocitySafeguards(nb);
+                        balls.push(nb);
+                    }
+                }
+            } else if (typeId === 'fireball') {
+                activeTimers.fireball = {
+                    remaining: cfg.duration,
+                    duration: cfg.duration
+                };
+            } else if (typeId === 'laser') {
+                activeTimers.laser = {
+                    remaining: cfg.duration,
+                    duration: cfg.duration
+                };
+                paddle.laserCooldown = 0.05;
+            } else if (typeId === 'wide') {
+                activeTimers.wide = {
+                    remaining: cfg.duration,
+                    duration: cfg.duration
+                };
+                paddle.targetW = paddle.baseW * 1.5;
+            } else if (typeId === 'life') {
+                if (lives < MAX_LIVES) {
+                    lives++;
+                    renderLivesHUD();
+                } else {
+                    score += 1000;
+                    spawnPopup(px, py - 32, '+1000 MAX SHIELD', PALETTE.yellow);
+                    updateHUD();
+                }
+            }
+
+            renderPowerupTimersHUD();
+        }
+
+        // ==========================================
+        // 10. BRICK DAMAGE, COMBOS & BOMB CHAIN REACTIONS
+        // ==========================================
+        function damageBrick(brick, isBombBlast = false, isFireball = false) {
+            if (brick.destroyed) return;
+
+            combo++;
+            const multiplier = Math.max(1, combo);
+
+            if (isFireball || isBombBlast) {
+                brick.hp = 0;
+            } else {
+                brick.hp -= 1;
+            }
+
+            brick.hitFlash = 1.0;
+
+            const cx = brick.x + brick.w / 2;
+            const cy = brick.y + brick.h / 2;
+
+            if (brick.hp <= 0) {
+                brick.destroyed = true;
+                const earned = brick.points * multiplier;
+                score += earned;
+                updateHUD();
+
+                sfx.playBrickHit(combo, true, false);
+                spawnParticles(cx, cy, brick.color, brick.type === 'bomb' ? 24 : 14, 1.05);
+                spawnPopup(
+                    cx,
+                    cy,
+                    multiplier > 1 ? `+${earned} (${multiplier}x)` : `+${earned}`,
+                    brick.color
+                );
+
+                // Trigger Bomb Chain Reaction!
+                if (brick.type === 'bomb') {
+                    detonateBomb(brick);
+                } else {
+                    maybeDropPowerup(cx, cy);
+                }
+            } else {
+                // Reinforced Armor or Heavy Core damaged but still standing
+                const chipPts = 50 * multiplier;
+                score += chipPts;
+                updateHUD();
+
+                sfx.playBrickHit(combo, false, true);
+                spawnParticles(cx, cy, '#ffffff', 7, 0.7);
+                spawnPopup(cx, cy, `+${chipPts}`, '#ffffff');
+            }
+        }
+
+        function detonateBomb(bombBrick) {
+            sfx.playBombExplosion();
+            triggerShake(0.28, 8);
+
+            const bx = bombBrick.x + bombBrick.w / 2;
+            const by = bombBrick.y + bombBrick.h / 2;
+            const blastRadiusX = bombBrick.w * 1.65;
+            const blastRadiusY = bombBrick.h * 2.35;
+
+            spawnParticles(bx, by, PALETTE.orange, 26, 1.45);
+            spawnParticles(bx, by, PALETTE.yellow, 14, 1.2);
+
+            for (const other of bricks) {
+                if (other.destroyed || other === bombBrick) continue;
+                const ox = other.x + other.w / 2;
+                const oy = other.y + other.h / 2;
+
+                if (Math.abs(ox - bx) <= blastRadiusX && Math.abs(oy - by) <= blastRadiusY) {
+                    damageBrick(other, true, false);
+                }
+            }
+        }
+
+        // ==========================================
+        // 11. GAME FLOW (START, PAUSE, STAGE CLEAR, GAME OVER)
+        // ==========================================
+        function startGame() {
+            sfx.init();
+            resize();
+
+            score = 0;
+            stage = 1;
+            lives = STARTING_LIVES;
+            combo = 0;
+            activeTimers = {};
+            capsules = [];
+            lasers = [];
+            particles = [];
+            popups = [];
+            shakeTime = 0;
+
+            paddle.targetW = paddle.baseW;
+            paddle.w = paddle.baseW;
+            paddle.x = arena.x + arena.w / 2;
+
+            buildStageBricks(stage);
+            spawnDockedBall();
+
+            state = 'playing';
+            menuScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            stageBanner.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+
+            updateHUD();
+            renderLivesHUD();
+            renderPowerupTimersHUD();
+            updatePauseIcons();
+        }
+
+        function togglePause() {
+            if (state === 'playing') {
+                state = 'paused';
+                pauseScreen.classList.remove('hidden');
+            } else if (state === 'paused') {
+                state = 'playing';
+                pauseScreen.classList.add('hidden');
+                lastFrameTime = performance.now();
+            }
+            updatePauseIcons();
+        }
+
+        function updatePauseIcons() {
+            if (state === 'paused') {
+                iconPause.classList.add('hidden');
+                iconPlay.classList.remove('hidden');
+            } else {
+                iconPause.classList.remove('hidden');
+                iconPlay.classList.add('hidden');
+            }
+        }
+
+        function returnToMenu() {
+            state = 'menu';
+            hud.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            stageBanner.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            menuScreen.classList.remove('hidden');
+            menuHighScore.textContent = highScore;
+        }
+
+        function triggerStageClear() {
+            state = 'stageClear';
+            stageClearTimer = 1.85;
+            sfx.playStageClear();
+            triggerShake(0.22, 5);
+
+            const stageBonus = stage * 500;
+            score += stageBonus;
+            updateHUD();
+
+            stageBannerSub.textContent = `SECTOR ${stage} CLEARED (+${stageBonus} PTS)`;
+            stageBannerTitle.textContent = `STAGE ${stage + 1}`;
+            stageBanner.classList.remove('hidden');
+        }
+
+        function advanceToNextStage() {
+            stage++;
+            combo = 0;
+            capsules = [];
+            lasers = [];
+            buildStageBricks(stage);
+            spawnDockedBall();
+            stageBanner.classList.add('hidden');
+            state = 'playing';
+            updateHUD();
+        }
+
+        function triggerGameOver() {
+            state = 'gameover';
+            sfx.playLifeLost();
+            triggerShake(0.4, 10);
+
+            let isNewRecord = false;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('neonBreakerHighScore', String(highScore));
+                isNewRecord = true;
+            }
+
+            finalScoreEl.textContent = score;
+            bestScoreEl.textContent = highScore;
+            finalStageEl.textContent = stage;
+            menuHighScore.textContent = highScore;
+
+            if (isNewRecord && score > 0) {
+                newRecordBadge.classList.remove('hidden');
+            } else {
+                newRecordBadge.classList.add('hidden');
+            }
+
+            hud.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        // ==========================================
+        // 12. PHYSICS & SIMULATION UPDATE LOOP
+        // ==========================================
+        function circleRectCollision(cx, cy, cr, rx, ry, rw, rh) {
+            const closestX = Math.max(rx, Math.min(cx, rx + rw));
+            const closestY = Math.max(ry, Math.min(cy, ry + rh));
+            const dx = cx - closestX;
+            const dy = cy - closestY;
+            return (dx * dx + dy * dy) <= (cr * cr);
+        }
+
+        function update(dt) {
+            // Update particles & floating popups in all active states
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vx *= 0.95;
+                p.vy *= 0.95;
+                p.life -= p.decay * dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = popups.length - 1; i >= 0; i--) {
+                const pop = popups[i];
+                pop.y += pop.vy * dt;
+                pop.life -= dt * 1.1;
+                if (pop.life <= 0) popups.splice(i, 1);
+            }
+
+            for (const b of bricks) {
+                if (b.hitFlash > 0) {
+                    b.hitFlash = Math.max(0, b.hitFlash - dt * 5);
+                }
+            }
+
+            if (shakeTime > 0) {
+                shakeTime = Math.max(0, shakeTime - dt);
+            }
+
+            if (state === 'stageClear') {
+                stageClearTimer -= dt;
+                if (stageClearTimer <= 0) {
+                    advanceToNextStage();
+                }
+                return;
+            }
+
+            if (state !== 'playing') return;
+
+            // 1. Update Active Timed Power-Ups
+            let timersChanged = false;
+            for (const key of Object.keys(activeTimers)) {
+                activeTimers[key].remaining -= dt;
+                timersChanged = true;
+                if (activeTimers[key].remaining <= 0) {
+                    delete activeTimers[key];
+                    if (key === 'wide') {
+                        paddle.targetW = paddle.baseW;
+                    }
+                }
+            }
+            if (timersChanged) {
+                renderPowerupTimersHUD();
+            }
+
+            // Smoothly interpolate paddle width (Wide Paddle expansion/contraction)
+            paddle.w += (paddle.targetW - paddle.w) * Math.min(1, dt * 14);
+
+            // 2. Paddle Movement
+            if (keys.left) paddle.x -= paddle.speed * dt;
+            if (keys.right) paddle.x += paddle.speed * dt;
+            clampPaddle();
+
+            // 3. Laser Paddle Firing
+            if (activeTimers.laser) {
+                paddle.laserCooldown -= dt;
+                if (paddle.laserCooldown <= 0) {
+                    paddle.laserCooldown = 0.36;
+                    const offset = paddle.w * 0.38;
+                    lasers.push({ x: paddle.x - offset, y: paddle.y - 6, vy: -760 });
+                    lasers.push({ x: paddle.x + offset, y: paddle.y - 6, vy: -760 });
+                    sfx.playLaserShoot();
+                }
+            }
+
+            // Update Laser Bolts
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const l = lasers[i];
+                l.y += l.vy * dt;
+
+                if (l.y < arena.y) {
+                    lasers.splice(i, 1);
+                    continue;
+                }
+
+                // Check laser collision against bricks
+                for (const b of bricks) {
+                    if (b.destroyed) continue;
+                    if (l.x >= b.x && l.x <= b.x + b.w && l.y >= b.y && l.y <= b.y + b.h) {
+                        damageBrick(b, false, false);
+                        lasers.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            // 4. Update Falling Power-Up Capsules
+            for (let i = capsules.length - 1; i >= 0; i--) {
+                const cap = capsules[i];
+                cap.y += cap.vy * dt;
+                cap.pulse += dt * 7;
+
+                // Paddle pickup AABB
+                if (
+                    cap.x + cap.w / 2 >= paddle.x - paddle.w / 2 &&
+                    cap.x - cap.w / 2 <= paddle.x + paddle.w / 2 &&
+                    cap.y + cap.h / 2 >= paddle.y - paddle.h / 2 &&
+                    cap.y - cap.h / 2 <= paddle.y + paddle.h / 2
+                ) {
+                    capsules.splice(i, 1);
+                    activatePowerup(cap.type, cap.x, paddle.y);
+                    continue;
+                }
+
+                if (cap.y - cap.h / 2 > arena.y + arena.h + 20) {
+                    capsules.splice(i, 1);
+                }
+            }
+
+            // 5. Update Balls with Sub-Stepping (Prevents Tunneling)
+            const isFireball = Boolean(activeTimers.fireball);
+            const subSteps = 3;
+            const subDt = dt / subSteps;
+
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const ball = balls[i];
+
+                // Record motion trail
+                ball.trail.push({ x: ball.x, y: ball.y });
+                if (ball.trail.length > 8) ball.trail.shift();
+
+                if (ball.docked) {
+                    ball.x = paddle.x + ball.dockOffset;
+                    ball.y = paddle.y - paddle.h / 2 - ball.r - 1;
+                    continue;
+                }
+
+                let lostBall = false;
+
+                for (let step = 0; step < subSteps; step++) {
+                    ball.x += ball.vx * subDt;
+                    ball.y += ball.vy * subDt;
+
+                    // Left & Right Arena Walls
+                    if (ball.x - ball.r <= arena.x) {
+                        ball.x = arena.x + ball.r;
+                        ball.vx = Math.abs(ball.vx);
+                        sfx.playWallBounce();
+                    } else if (ball.x + ball.r >= arena.x + arena.w) {
+                        ball.x = arena.x + arena.w - ball.r;
+                        ball.vx = -Math.abs(ball.vx);
+                        sfx.playWallBounce();
+                    }
+
+                    // Top Arena Wall
+                    if (ball.y - ball.r <= arena.y) {
+                        ball.y = arena.y + ball.r;
+                        ball.vy = Math.abs(ball.vy);
+                        sfx.playWallBounce();
+                    }
+
+                    // Bottom Out-of-Bounds
+                    if (ball.y - ball.r > arena.y + arena.h + 14) {
+                        lostBall = true;
+                        break;
+                    }
+
+                    // Paddle Collision (only when moving downward)
+                    const pTop = paddle.y - paddle.h / 2;
+                    const pBot = paddle.y + paddle.h / 2;
+                    const pLeft = paddle.x - paddle.w / 2;
+                    const pRight = paddle.x + paddle.w / 2;
+
+                    if (
+                        ball.vy > 0 &&
+                        circleRectCollision(ball.x, ball.y, ball.r, pLeft, pTop, paddle.w, paddle.h)
+                    ) {
+                        ball.y = pTop - ball.r;
+
+                        // Angle-based deflection (-1 at left edge, 0 at center, +1 at right edge)
+                        const hitOffset = Math.max(-1, Math.min(1, (ball.x - paddle.x) / (paddle.w / 2)));
+                        const maxBounceAngle = Math.PI * 0.36; // ~65 deg
+                        const bounceAngle = hitOffset * maxBounceAngle;
+
+                        ball.speed = getBaseBallSpeed();
+                        ball.vx = ball.speed * Math.sin(bounceAngle);
+                        ball.vy = -ball.speed * Math.cos(bounceAngle);
+                        enforceBallVelocitySafeguards(ball);
+
+                        // Reset combo when ball touches paddle
+                        if (combo > 0) {
+                            combo = 0;
+                            updateHUD();
+                        }
+
+                        sfx.playPaddleBounce();
+                        spawnParticles(ball.x, pTop, PALETTE.cyan, 6, 0.55);
+                    }
+
+                    // Brick Collisions
+                    for (const b of bricks) {
+                        if (b.destroyed) continue;
+                        if (circleRectCollision(ball.x, ball.y, ball.r, b.x, b.y, b.w, b.h)) {
+                            if (!isFireball) {
+                                // Determine side of collision via minimum penetration overlap
+                                const overlapLeft = (ball.x + ball.r) - b.x;
+                                const overlapRight = (b.x + b.w) - (ball.x - ball.r);
+                                const overlapTop = (ball.y + ball.r) - b.y;
+                                const overlapBottom = (b.y + b.h) - (ball.y - ball.r);
+
+                                const minOverlapX = Math.min(overlapLeft, overlapRight);
+                                const minOverlapY = Math.min(overlapTop, overlapBottom);
+
+                                if (minOverlapX < minOverlapY) {
+                                    ball.vx = overlapLeft < overlapRight ? -Math.abs(ball.vx) : Math.abs(ball.vx);
+                                    ball.x += overlapLeft < overlapRight ? -minOverlapX : minOverlapX;
+                                } else {
+                                    ball.vy = overlapTop < overlapBottom ? -Math.abs(ball.vy) : Math.abs(ball.vy);
+                                    ball.y += overlapTop < overlapBottom ? -minOverlapY : minOverlapY;
+                                }
+                                enforceBallVelocitySafeguards(ball);
+                            }
+
+                            damageBrick(b, false, isFireball);
+
+                            // If normal ball, reflect off one brick per substep; if Fireball, pierce through!
+                            if (!isFireball) break;
+                        }
+                    }
+                }
+
+                if (lostBall) {
+                    balls.splice(i, 1);
+                }
+            }
+
+            // 6. Check All Balls Lost
+            if (balls.length === 0) {
+                lives--;
+                combo = 0;
+                activeTimers = {};
+                paddle.targetW = paddle.baseW;
+                updateHUD();
+                renderLivesHUD();
+                renderPowerupTimersHUD();
+
+                if (lives <= 0) {
+                    triggerGameOver();
+                    return;
+                } else {
+                    sfx.playLifeLost();
+                    triggerShake(0.25, 7);
+                    spawnDockedBall();
+                }
+            }
+
+            // 7. Check Stage Clear (All Bricks Destroyed)
+            const remainingBricks = bricks.some(b => !b.destroyed);
+            if (!remainingBricks) {
+                triggerStageClear();
+            }
+        }
+
+        // ==========================================
+        // 13. HIGH-FPS CANVAS RENDERER
+        // ==========================================
+        function drawArenaAndGrid(nowSec) {
+            // Deep void background
+            ctx.fillStyle = PALETTE.bg;
+            ctx.fillRect(0, 0, viewWidth, viewHeight);
+
+            // Arena playfield interior
+            ctx.fillStyle = PALETTE.arenaBg;
+            ctx.fillRect(arena.x, arena.y, arena.w, arena.h);
+
+            // Subtle cyberpunk background grid inside arena
+            const gridSpacing = 36;
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = arena.x + gridSpacing; x < arena.x + arena.w; x += gridSpacing) {
+                ctx.moveTo(x, arena.y);
+                ctx.lineTo(x, arena.y + arena.h);
+            }
+            for (let y = arena.y + gridSpacing; y < arena.y + arena.h; y += gridSpacing) {
+                ctx.moveTo(arena.x, y);
+                ctx.lineTo(arena.x + arena.w, y);
+            }
+            ctx.stroke();
+
+            // Crisp neon arena border (left, top, right)
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(arena.x, arena.y + arena.h);
+            ctx.lineTo(arena.x, arena.y);
+            ctx.lineTo(arena.x + arena.w, arena.y);
+            ctx.lineTo(arena.x + arena.w, arena.y + arena.h);
+            ctx.stroke();
+
+            // Danger laser line along bottom edge
+            const pulseAlpha = 0.22 + Math.sin(nowSec * 5) * 0.08;
+            ctx.strokeStyle = `rgba(255, 0, 127, ${pulseAlpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(arena.x, arena.y + arena.h);
+            ctx.lineTo(arena.x + arena.w, arena.y + arena.h);
+            ctx.stroke();
+        }
+
+        function drawBricks(nowSec) {
+            for (const b of bricks) {
+                if (b.destroyed) continue;
+
+                let fillCol = b.color;
+                let strokeCol = b.color;
+
+                // Visual state shifts for damaged multi-HP bricks
+                if (b.type === 'armor' && b.hp === 1) {
+                    fillCol = '#9d174d';
+                    strokeCol = '#ff66b2';
+                } else if (b.type === 'core') {
+                    if (b.hp === 2) {
+                        fillCol = '#b45309';
+                        strokeCol = PALETTE.yellow;
+                    } else if (b.hp === 1) {
+                        fillCol = '#78350f';
+                        strokeCol = '#fde047';
+                    }
+                } else if (b.type === 'bomb') {
+                    const pulse = 0.5 + 0.5 * Math.sin(nowSec * 10);
+                    fillCol = pulse > 0.5 ? '#dc2626' : '#ea580c';
+                    strokeCol = PALETTE.yellow;
+                }
+
+                if (b.hitFlash > 0) {
+                    fillCol = '#ffffff';
+                    strokeCol = '#ffffff';
+                }
+
+                // Brick Body Fill
+                ctx.fillStyle = fillCol;
+                ctx.globalAlpha = b.hitFlash > 0 ? 0.95 : 0.24;
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+                ctx.globalAlpha = 1.0;
+
+                // Brick Neon Border
+                ctx.strokeStyle = strokeCol;
+                ctx.lineWidth = b.type === 'core' ? 2.2 : 1.6;
+                ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
+
+                // Top specular inner highlight bar
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.fillRect(b.x + 3, b.y + 2.5, b.w - 6, 2);
+
+                // Heavy Core metallic inner border & HP pips
+                if (b.type === 'core' && b.hitFlash <= 0) {
+                    ctx.strokeStyle = PALETTE.yellow;
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(b.x + 4, b.y + 4, b.w - 8, b.h - 8);
+                }
+
+                // Bomb Brick pulsing hazard diamond icon
+                if (b.type === 'bomb') {
+                    const cx = b.x + b.w / 2;
+                    const cy = b.y + b.h / 2;
+                    const r = Math.min(b.w, b.h) * 0.28;
+                    ctx.fillStyle = PALETTE.yellow;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy - r);
+                    ctx.lineTo(cx + r, cy);
+                    ctx.lineTo(cx, cy + r);
+                    ctx.lineTo(cx - r, cy);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // Jagged Crack Lines for Damaged Armor/Core Bricks
+                if ((b.type === 'armor' || b.type === 'core') && b.hp < b.maxHp && b.hitFlash <= 0) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.4;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x + b.w * 0.25, b.y + 1);
+                    ctx.lineTo(b.x + b.w * 0.42, b.y + b.h * 0.52);
+                    ctx.lineTo(b.x + b.w * 0.34, b.y + b.h - 1);
+                    if (b.maxHp - b.hp >= 2) {
+                        ctx.moveTo(b.x + b.w * 0.72, b.y + 1);
+                        ctx.lineTo(b.x + b.w * 0.58, b.y + b.h * 0.48);
+                        ctx.lineTo(b.x + b.w * 0.68, b.y + b.h - 1);
+                    }
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawPaddleAndLasers() {
+            const left = paddle.x - paddle.w / 2;
+            const top = paddle.y - paddle.h / 2;
+
+            // Determine paddle accent color from active power-ups
+            let paddleAccent = PALETTE.cyan;
+            if (activeTimers.laser) paddleAccent = PALETTE.magenta;
+            else if (activeTimers.wide) paddleAccent = PALETTE.green;
+
+            // Outer soft glow
+            ctx.fillStyle = paddleAccent;
+            ctx.globalAlpha = 0.2;
+            ctx.fillRect(left - 3, top - 3, paddle.w + 6, paddle.h + 6);
+            ctx.globalAlpha = 1.0;
+
+            // Main paddle body
+            ctx.fillStyle = '#0e1326';
+            ctx.strokeStyle = paddleAccent;
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.roundRect(left, top, paddle.w, paddle.h, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            // Center core stripe
+            ctx.fillStyle = paddleAccent;
+            ctx.fillRect(paddle.x - paddle.w * 0.22, top + 4, paddle.w * 0.44, paddle.h - 8);
+
+            // Twin Laser Turrets if Laser Paddle active
+            if (activeTimers.laser) {
+                const offset = paddle.w * 0.38;
+                ctx.fillStyle = PALETTE.magenta;
+                ctx.fillRect(paddle.x - offset - 3, top - 6, 6, 7);
+                ctx.fillRect(paddle.x + offset - 3, top - 6, 6, 7);
+            }
+
+            // Draw Active Upward Laser Bolts
+            for (const l of lasers) {
+                ctx.fillStyle = PALETTE.magenta;
+                ctx.fillRect(l.x - 2, l.y - 12, 4, 16);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(l.x - 1, l.y - 10, 2, 12);
+            }
+        }
+
+        function drawCapsules() {
+            for (const cap of capsules) {
+                const cfg = POWERUP_CONFIG[cap.type];
+                const left = cap.x - cap.w / 2;
+                const top = cap.y - cap.h / 2;
+
+                // Capsule background
+                ctx.fillStyle = '#0c091d';
+                ctx.strokeStyle = cfg.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(left, top, cap.w, cap.h, 10);
+                ctx.fill();
+                ctx.stroke();
+
+                // Capsule label
+                ctx.font = '900 10px "Inter", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = cfg.color;
+                ctx.fillText(cfg.shortLabel, cap.x, cap.y + 0.5);
+            }
+        }
+
+        function drawBalls() {
+            const isFireball = Boolean(activeTimers.fireball);
+            const mainCol = isFireball ? PALETTE.orange : '#ffffff';
+            const glowCol = isFireball ? 'rgba(255, 106, 0, 0.35)' : 'rgba(0, 243, 255, 0.32)';
+
+            for (const ball of balls) {
+                // Motion trail
+                for (let i = 0; i < ball.trail.length; i++) {
+                    const pt = ball.trail[i];
+                    const ratio = (i + 1) / ball.trail.length;
+                    ctx.globalAlpha = ratio * 0.32;
+                    ctx.fillStyle = isFireball ? PALETTE.orange : PALETTE.cyan;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, ball.r * ratio * 0.9, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1.0;
+
+                // Outer halo
+                ctx.fillStyle = glowCol;
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.r * 1.85, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core sphere
+                ctx.fillStyle = mainCol;
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (isFireball) {
+                    ctx.fillStyle = PALETTE.yellow;
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ball.r * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Helpful launch hint if ball is docked
+            if (state === 'playing' && balls.some(b => b.docked)) {
+                ctx.font = '700 12px "Inter", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(0, 243, 255, 0.75)';
+                ctx.fillText('CLICK, TAP, OR PRESS SPACE TO LAUNCH', arena.x + arena.w / 2, paddle.y - 34);
+            }
+        }
+
+        function drawParticlesAndPopups() {
+            for (const p of particles) {
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+            }
+            ctx.globalAlpha = 1.0;
+
+            for (const pop of popups) {
+                ctx.globalAlpha = Math.max(0, pop.life);
+                ctx.font = '900 13px "Inter", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(5, 4, 10, 0.9)';
+                ctx.strokeText(pop.text, pop.x, pop.y);
+                ctx.fillStyle = pop.color;
+                ctx.fillText(pop.text, pop.x, pop.y);
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        function render(nowMs) {
+            const nowSec = nowMs / 1000;
+
+            ctx.save();
+            if (shakeTime > 0) {
+                const mag = (shakeTime / 0.35) * shakeMag;
+                ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+            }
+
+            drawArenaAndGrid(nowSec);
+            drawBricks(nowSec);
+
+            if (state !== 'menu') {
+                drawCapsules();
+                drawPaddleAndLasers();
+                drawBalls();
+                drawParticlesAndPopups();
+            }
+
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 14. MAIN ANIMATION LOOP & BUTTON BINDINGS
+        // ==========================================
+        function gameLoop(nowMs) {
+            if (!lastFrameTime) lastFrameTime = nowMs;
+            const dt = Math.min((nowMs - lastFrameTime) / 1000, 0.05);
+            lastFrameTime = nowMs;
+
+            update(dt);
+            render(nowMs);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        document.getElementById('resumeBtn').addEventListener('click', togglePause);
+        document.getElementById('quitBtn').addEventListener('click', returnToMenu);
+        document.getElementById('gameOverMenuBtn').addEventListener('click', returnToMenu);
+
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sfx.toggleMute();
+        });
+
+        pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePause();
+        });
+
+        // Initial Setup & Decorative Menu Background Stage
+        menuHighScore.textContent = highScore;
+        resize();
+        buildStageBricks(1);
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
